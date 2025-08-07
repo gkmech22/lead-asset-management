@@ -17,49 +17,49 @@ const mockAssets = [
     name: "MacBook Pro 16\"", 
     type: "Laptop", 
     brand: "Apple", 
-    model: "MacBook Pro M2", 
     configuration: "16GB RAM, 512GB SSD", 
     serialNumber: "MBP16-2023-001",
     assignedTo: "John Doe", 
+    employeeId: "EMP001",
     status: "Assigned", 
     assignedDate: "2024-01-15" 
   },
   { 
     id: 2, 
     assetId: "AST-002", 
-    name: "ThinkPad X1", 
+    name: "ThinkPad X1 Carbon", 
     type: "Laptop", 
     brand: "Lenovo", 
-    model: "ThinkPad X1 Carbon", 
     configuration: "16GB RAM, 1TB SSD", 
     serialNumber: "TPX1-2023-002",
     assignedTo: null, 
+    employeeId: null,
     status: "Available", 
     assignedDate: null 
   },
   { 
     id: 3, 
     assetId: "AST-003", 
-    name: "iPad Pro", 
+    name: "iPad Pro 12.9\"", 
     type: "Tablet", 
     brand: "Apple", 
-    model: "iPad Pro 12.9", 
     configuration: "256GB, Wi-Fi + Cellular", 
     serialNumber: "IPD-2023-003",
     assignedTo: "Jane Smith", 
+    employeeId: "EMP002",
     status: "Assigned", 
     assignedDate: "2024-01-20" 
   },
   { 
     id: 4, 
     assetId: "AST-004", 
-    name: "Surface Pro", 
+    name: "Surface Pro 9", 
     type: "Tablet", 
     brand: "Microsoft", 
-    model: "Surface Pro 9", 
     configuration: "16GB RAM, 512GB SSD", 
     serialNumber: "SPR-2023-004",
     assignedTo: null, 
+    employeeId: null,
     status: "Available", 
     assignedDate: null 
   },
@@ -69,10 +69,10 @@ const mockAssets = [
     name: "Dell XPS 13", 
     type: "Laptop", 
     brand: "Dell", 
-    model: "XPS 13 Plus", 
     configuration: "32GB RAM, 1TB SSD", 
     serialNumber: "DXP-2023-005",
     assignedTo: "Mike Johnson", 
+    employeeId: "EMP003",
     status: "Assigned", 
     assignedDate: "2024-02-01" 
   },
@@ -82,11 +82,11 @@ const mockAssets = [
     name: "Galaxy Tab S9", 
     type: "Tablet", 
     brand: "Samsung", 
-    model: "Galaxy Tab S9 Ultra", 
     configuration: "512GB, 5G", 
     serialNumber: "GTS-2023-006",
     assignedTo: "Sarah Wilson", 
-    status: "Scrap", 
+    employeeId: "EMP004",
+    status: "Scrap/Damage", 
     assignedDate: "2024-02-05" 
   },
 ];
@@ -129,20 +129,20 @@ export const Dashboard = () => {
   const handleAddAsset = (newAsset: any) => {
     const asset = {
       id: assets.length + 1,
-      assetId: `AST-${String(assets.length + 1).padStart(3, '0')}`,
       ...newAsset,
       status: "Available",
       assignedTo: null,
+      employeeId: null,
       assignedDate: null,
     };
     setAssets([...assets, asset]);
     setShowAddForm(false);
   };
 
-  const handleAssignAsset = (assetId: number, userName: string) => {
+  const handleAssignAsset = (assetId: number, userName: string, employeeId: string) => {
     setAssets(assets.map(asset => 
       asset.id === assetId 
-        ? { ...asset, assignedTo: userName, status: "Assigned", assignedDate: new Date().toISOString().split('T')[0] }
+        ? { ...asset, assignedTo: userName, employeeId, status: "Assigned", assignedDate: new Date().toISOString().split('T')[0] }
         : asset
     ));
   };
@@ -150,9 +150,25 @@ export const Dashboard = () => {
   const handleUnassignAsset = (assetId: number) => {
     setAssets(assets.map(asset => 
       asset.id === assetId 
-        ? { ...asset, assignedTo: null, status: "Available", assignedDate: null }
+        ? { ...asset, assignedTo: null, employeeId: null, status: "Available", assignedDate: null }
         : asset
     ));
+  };
+
+  const handleUpdateAsset = (assetId: number, updatedAsset: any) => {
+    setAssets(assets.map(asset => 
+      asset.id === assetId ? { ...asset, ...updatedAsset } : asset
+    ));
+  };
+
+  const handleUpdateStatus = (assetId: number, status: string) => {
+    setAssets(assets.map(asset => 
+      asset.id === assetId ? { ...asset, status } : asset
+    ));
+  };
+
+  const handleDeleteAsset = (assetId: number) => {
+    setAssets(assets.filter(asset => asset.id !== assetId));
   };
 
   const handleUpdateAssetStatus = (assetId: number, status: string) => {
@@ -169,15 +185,15 @@ export const Dashboard = () => {
 
   const handleDownloadData = () => {
     const headers = [
-      "Asset ID", "Asset Name", "Asset Type", "Brand", "Model", "Configuration", 
-      "Serial Number", "Employee Name", "Status", "Assigned Date"
+      "Asset ID", "Asset Name", "Asset Type", "Brand", "Configuration", 
+      "Serial Number", "Employee ID", "Employee Name", "Status", "Assigned Date"
     ];
     
     const csvContent = [
       headers.join(","),
       ...filteredAssets.map(asset => [
-        asset.assetId, asset.name, asset.type, asset.brand, asset.model, 
-        asset.configuration, asset.serialNumber, asset.assignedTo || "", 
+        asset.assetId, asset.name, asset.type, asset.brand, 
+        asset.configuration, asset.serialNumber, asset.employeeId || "", asset.assignedTo || "", 
         asset.status, asset.assignedDate || ""
       ].join(","))
     ].join("\n");
@@ -199,7 +215,7 @@ export const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-card border-b shadow-card">
         <div className="container mx-auto px-6 py-6">
@@ -373,8 +389,13 @@ export const Dashboard = () => {
           assets={filteredAssets}
           onAssign={handleAssignAsset}
           onUnassign={handleUnassignAsset}
-          onUpdateStatus={handleUpdateAssetStatus}
+          onUpdateAsset={handleUpdateAsset}
+          onUpdateStatus={handleUpdateStatus}
+          onDelete={handleDeleteAsset}
           dateRange={dateRange}
+          typeFilter={typeFilter}
+          brandFilter={brandFilter}
+          configFilter={configFilter}
         />
       </div>
 

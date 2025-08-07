@@ -6,14 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-interface AssetFormProps {
-  onSubmit: (asset: any) => void;
-  onCancel: () => void;
-  asset?: any;
-  isEdit?: boolean;
+interface EditAssetDialogProps {
+  asset: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdate: (assetId: number, updatedAsset: any) => void;
 }
 
-export const AssetForm = ({ onSubmit, onCancel, asset, isEdit = false }: AssetFormProps) => {
+export const EditAssetDialog = ({ asset, open, onOpenChange, onUpdate }: EditAssetDialogProps) => {
   const [formData, setFormData] = useState({
     assetId: asset?.assetId || "",
     name: asset?.name || "",
@@ -25,15 +25,16 @@ export const AssetForm = ({ onSubmit, onCancel, asset, isEdit = false }: AssetFo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    onUpdate(asset.id, formData);
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={true} onOpenChange={() => onCancel()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold bg-gradient-primary bg-clip-text text-transparent">
-            {isEdit ? "Edit Asset" : "Add New Asset"}
+            Edit Asset
           </DialogTitle>
         </DialogHeader>
         
@@ -62,7 +63,7 @@ export const AssetForm = ({ onSubmit, onCancel, asset, isEdit = false }: AssetFo
 
           <div className="space-y-2">
             <Label htmlFor="type">Asset Type *</Label>
-            <Select onValueChange={(value) => setFormData({ ...formData, type: value })}>
+            <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
               <SelectTrigger>
                 <SelectValue placeholder="Select asset type" />
               </SelectTrigger>
@@ -87,7 +88,6 @@ export const AssetForm = ({ onSubmit, onCancel, asset, isEdit = false }: AssetFo
               required
             />
           </div>
-
 
           <div className="space-y-2">
             <Label htmlFor="configuration">Configuration</Label>
@@ -115,7 +115,7 @@ export const AssetForm = ({ onSubmit, onCancel, asset, isEdit = false }: AssetFo
             <Button 
               type="button" 
               variant="outline" 
-              onClick={onCancel}
+              onClick={() => onOpenChange(false)}
               className="flex-1"
             >
               Cancel
@@ -125,7 +125,7 @@ export const AssetForm = ({ onSubmit, onCancel, asset, isEdit = false }: AssetFo
               className="flex-1 bg-gradient-primary hover:shadow-glow transition-smooth"
               disabled={!formData.assetId || !formData.name || !formData.type || !formData.brand || !formData.serialNumber}
             >
-              {isEdit ? "Update Asset" : "Add Asset"}
+              Update Asset
             </Button>
           </div>
         </form>

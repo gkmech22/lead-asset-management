@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { UserPlus, UserMinus, Settings, Search, Calendar } from "lucide-react";
 import { DateRange } from "react-day-picker";
+import { EditAssetDialog } from "./EditAssetDialog";
 
 interface Asset {
   id: number;
@@ -16,50 +17,74 @@ interface Asset {
   name: string;
   type: string;
   brand: string;
-  model: string;
   configuration: string;
   serialNumber: string;
   assignedTo: string | null;
+  employeeId: string | null;
   status: string;
   assignedDate: string | null;
 }
 
 interface AssetListProps {
   assets: Asset[];
-  onAssign: (assetId: number, userName: string) => void;
+  onAssign: (assetId: number, userName: string, employeeId: string) => void;
   onUnassign: (assetId: number) => void;
+  onUpdateAsset: (assetId: number, updatedAsset: any) => void;
   onUpdateStatus: (assetId: number, status: string) => void;
+  onDelete: (assetId: number) => void;
   dateRange?: DateRange;
+  typeFilter?: string;
+  brandFilter?: string;
+  configFilter?: string;
 }
 
-export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRange }: AssetListProps) => {
+export const AssetList = ({ 
+  assets, 
+  onAssign, 
+  onUnassign, 
+  onUpdateAsset, 
+  onUpdateStatus, 
+  onDelete, 
+  dateRange, 
+  typeFilter = "all", 
+  brandFilter = "all", 
+  configFilter = "all" 
+}: AssetListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [userName, setUserName] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [newStatus, setNewStatus] = useState("");
 
-  // Filter assets based on search and date range
+  // Filter assets based on search, date range, and filters
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = 
       asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.assetId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (asset.assignedTo && asset.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()));
+      (asset.assignedTo && asset.assignedTo.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (asset.employeeId && asset.employeeId.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesDateRange = !dateRange?.from || !dateRange?.to || !asset.assignedDate ||
       (new Date(asset.assignedDate) >= dateRange.from && new Date(asset.assignedDate) <= dateRange.to);
 
-    return matchesSearch && matchesDateRange;
+    const matchesType = typeFilter === "all" || asset.type === typeFilter;
+    const matchesBrand = brandFilter === "all" || asset.brand === brandFilter;
+    const matchesConfig = configFilter === "all" || asset.configuration === configFilter;
+
+    return matchesSearch && matchesDateRange && matchesType && matchesBrand && matchesConfig;
   });
 
   const handleAssignAsset = () => {
-    if (selectedAsset && userName.trim()) {
-      onAssign(selectedAsset.id, userName.trim());
+    if (selectedAsset && userName.trim() && employeeId.trim()) {
+      onAssign(selectedAsset.id, userName.trim(), employeeId.trim());
       setShowAssignDialog(false);
       setUserName("");
+      setEmployeeId("");
       setSelectedAsset(null);
     }
   };
@@ -79,10 +104,12 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
         return <Badge className="bg-warning text-warning-foreground">Assigned</Badge>;
       case "Available":
         return <Badge className="bg-success text-success-foreground">Available</Badge>;
-      case "Scrap":
-        return <Badge className="bg-destructive text-destructive-foreground">Scrap</Badge>;
-      case "Damage":
-        return <Badge className="bg-destructive text-destructive-foreground">Damage</Badge>;
+      case "Scrap/Damage":
+        return <Badge className="bg-destructive text-destructive-foreground">Scrap/Damage</Badge>;
+      case "Sold":
+        return <Badge className="bg-blue-500 text-white">Sold</Badge>;
+      case "Others":
+        return <Badge variant="secondary">Others</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -134,9 +161,11 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Asset ID</TableHead>
                   <TableHead>Asset Details</TableHead>
                   <TableHead>Specifications</TableHead>
                   <TableHead>Serial Number</TableHead>
+                  <TableHead>Employee ID</TableHead>
                   <TableHead>Assigned To</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
@@ -147,15 +176,19 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
                 {filteredAssets.map((asset) => (
                   <TableRow key={asset.id} className="hover:bg-muted/50">
                     <TableCell>
+                      <code className="bg-primary/10 text-primary px-2 py-1 rounded text-sm font-medium">
+                        {asset.assetId}
+                      </code>
+                    </TableCell>
+                    <TableCell>
                       <div>
                         <div className="font-medium">{asset.name}</div>
-                        <div className="text-sm text-muted-foreground">{asset.assetId}</div>
+                        <div className="text-sm text-muted-foreground">{asset.type}</div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="text-sm">{asset.brand}</div>
-                        <div className="text-sm text-muted-foreground">{asset.model}</div>
+                        <div className="text-sm font-medium">{asset.brand}</div>
                         <div className="text-xs text-muted-foreground">{asset.configuration}</div>
                       </div>
                     </TableCell>
@@ -163,6 +196,15 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
                       <code className="bg-muted px-2 py-1 rounded text-xs">
                         {asset.serialNumber}
                       </code>
+                    </TableCell>
+                    <TableCell>
+                      {asset.employeeId ? (
+                        <code className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">
+                          {asset.employeeId}
+                        </code>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {asset.assignedTo ? (
@@ -186,7 +228,7 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 flex-wrap">
                         {asset.status === "Available" ? (
                           <Button
                             size="sm"
@@ -215,12 +257,35 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
                           variant="outline"
                           onClick={() => {
                             setSelectedAsset(asset);
+                            setShowEditDialog(true);
+                          }}
+                          className="hover:bg-blue-500 hover:text-white"
+                        >
+                          <Settings className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedAsset(asset);
                             setNewStatus(asset.status);
                             setShowStatusDialog(true);
                           }}
                           className="hover:bg-primary hover:text-primary-foreground"
                         >
-                          <Settings className="h-3 w-3" />
+                          Status
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (confirm("Are you sure you want to delete this asset?")) {
+                              onDelete(asset.id);
+                            }
+                          }}
+                          className="hover:bg-destructive hover:text-destructive-foreground"
+                        >
+                          Delete
                         </Button>
                       </div>
                     </TableCell>
@@ -244,6 +309,15 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
               <p className="text-sm text-muted-foreground">{selectedAsset?.assetId}</p>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="employeeId">Employee ID *</Label>
+              <Input
+                id="employeeId"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                placeholder="Enter employee ID"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="userName">Employee Name *</Label>
               <Input
                 id="userName"
@@ -258,6 +332,7 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
                 onClick={() => {
                   setShowAssignDialog(false);
                   setUserName("");
+                  setEmployeeId("");
                   setSelectedAsset(null);
                 }}
                 className="flex-1"
@@ -266,7 +341,7 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
               </Button>
               <Button 
                 onClick={handleAssignAsset}
-                disabled={!userName.trim()}
+                disabled={!userName.trim() || !employeeId.trim()}
                 className="flex-1 bg-gradient-primary hover:shadow-glow transition-smooth"
               >
                 Assign
@@ -296,9 +371,9 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
                 <SelectContent>
                   <SelectItem value="Available">Available</SelectItem>
                   <SelectItem value="Assigned">Assigned</SelectItem>
-                  <SelectItem value="Scrap">Scrap</SelectItem>
-                  <SelectItem value="Damage">Damage</SelectItem>
-                  <SelectItem value="Maintenance">Maintenance</SelectItem>
+                  <SelectItem value="Scrap/Damage">Scrap/Damage</SelectItem>
+                  <SelectItem value="Sold">Sold</SelectItem>
+                  <SelectItem value="Others">Others</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -325,6 +400,14 @@ export const AssetList = ({ assets, onAssign, onUnassign, onUpdateStatus, dateRa
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Asset Dialog */}
+      <EditAssetDialog
+        asset={selectedAsset}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onUpdate={onUpdateAsset}
+      />
     </Card>
   );
 };
