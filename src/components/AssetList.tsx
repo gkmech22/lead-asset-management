@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { UserPlus, UserMinus, Settings, Search, Calendar } from "lucide-react";
 import { DateRange } from "react-day-picker";
@@ -22,6 +22,7 @@ interface Asset {
   assignedTo: string | null;
   employeeId: string | null;
   status: string;
+  location: string;
   assignedDate: string | null;
 }
 
@@ -31,6 +32,7 @@ interface AssetListProps {
   onUnassign: (assetId: number) => void;
   onUpdateAsset: (assetId: number, updatedAsset: any) => void;
   onUpdateStatus: (assetId: number, status: string) => void;
+  onUpdateLocation: (assetId: number, location: string) => void;
   onDelete: (assetId: number) => void;
   dateRange?: DateRange;
   typeFilter?: string;
@@ -38,17 +40,18 @@ interface AssetListProps {
   configFilter?: string;
 }
 
-export const AssetList = ({ 
-  assets, 
-  onAssign, 
-  onUnassign, 
-  onUpdateAsset, 
-  onUpdateStatus, 
-  onDelete, 
-  dateRange, 
-  typeFilter = "all", 
-  brandFilter = "all", 
-  configFilter = "all" 
+export const AssetList = ({
+  assets,
+  onAssign,
+  onUnassign,
+  onUpdateAsset,
+  onUpdateStatus,
+  onUpdateLocation,
+  onDelete,
+  dateRange,
+  typeFilter = "all",
+  brandFilter = "all",
+  configFilter = "all",
 }: AssetListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -56,20 +59,44 @@ export const AssetList = ({
   const [employeeId, setEmployeeId] = useState("");
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [newStatus, setNewStatus] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 100;
+
+  const locations = [
+    "Mumbai Office",
+    "Hyderabad WH",
+    "Ghaziabad WH",
+    "Bhiwandi WH",
+    "Patiala WH",
+    "Bangalore Office",
+    "Kolkata WH",
+    "Trichy WH",
+    "Gurugram Office",
+    "Indore WH",
+    "Bangalore WH",
+    "Jaipur WH",
+  ];
 
   // Filter assets based on search, date range, and filters
-  const filteredAssets = assets.filter(asset => {
-    const matchesSearch = 
+  const filteredAssets = assets.filter((asset) => {
+    const matchesSearch =
       asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.assetId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (asset.assignedTo && asset.assignedTo.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (asset.employeeId && asset.employeeId.toLowerCase().includes(searchTerm.toLowerCase()));
+      (asset.employeeId && asset.employeeId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      asset.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.location.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesDateRange = !dateRange?.from || !dateRange?.to || !asset.assignedDate ||
+    const matchesDateRange =
+      !dateRange?.from ||
+      !dateRange?.to ||
+      !asset.assignedDate ||
       (new Date(asset.assignedDate) >= dateRange.from && new Date(asset.assignedDate) <= dateRange.to);
 
     const matchesType = typeFilter === "all" || asset.type === typeFilter;
@@ -78,6 +105,13 @@ export const AssetList = ({
 
     return matchesSearch && matchesDateRange && matchesType && matchesBrand && matchesConfig;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAssets.length / rowsPerPage);
+  const paginatedAssets = filteredAssets.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   const handleAssignAsset = () => {
     if (selectedAsset && userName.trim() && employeeId.trim()) {
@@ -94,6 +128,15 @@ export const AssetList = ({
       onUpdateStatus(selectedAsset.id, newStatus);
       setShowStatusDialog(false);
       setNewStatus("");
+      setSelectedAsset(null);
+    }
+  };
+
+  const handleUpdateLocation = () => {
+    if (selectedAsset && newLocation) {
+      onUpdateLocation(selectedAsset.id, newLocation);
+      setShowLocationDialog(false);
+      setNewLocation("");
       setSelectedAsset(null);
     }
   };
@@ -117,10 +160,10 @@ export const AssetList = ({
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -157,143 +200,184 @@ export const AssetList = ({
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Asset ID</TableHead>
-                  <TableHead>Asset Details</TableHead>
-                  <TableHead>Specifications</TableHead>
-                  <TableHead>Serial Number</TableHead>
-                  <TableHead>Employee ID</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAssets.map((asset) => (
-                  <TableRow key={asset.id} className="hover:bg-muted/50">
-                    <TableCell>
-                      <code className="bg-primary/10 text-primary px-2 py-1 rounded text-sm font-medium">
-                        {asset.assetId}
-                      </code>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{asset.name}</div>
-                        <div className="text-sm text-muted-foreground">{asset.type}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="text-sm font-medium">{asset.brand}</div>
-                        <div className="text-xs text-muted-foreground">{asset.configuration}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <code className="bg-muted px-2 py-1 rounded text-xs">
-                        {asset.serialNumber}
-                      </code>
-                    </TableCell>
-                    <TableCell>
-                      {asset.employeeId ? (
-                        <code className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">
-                          {asset.employeeId}
+          <>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Asset ID</TableHead>
+                    <TableHead>Asset Details</TableHead>
+                    <TableHead>Specifications</TableHead>
+                    <TableHead>Serial Number</TableHead>
+                    <TableHead>Employee ID</TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Asset Location</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedAssets.map((asset) => (
+                    <TableRow key={asset.id} className="hover:bg-muted/50">
+                      <TableCell>
+                        <code className="bg-primary/10 text-primary px-2 py-1 rounded text-sm font-medium">
+                          {asset.assetId}
                         </code>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {asset.assignedTo ? (
-                        <div className="font-medium">{asset.assignedTo}</div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Unassigned</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(asset.status)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {asset.assignedDate ? (
-                          <>
-                            <div>Assigned: {formatDate(asset.assignedDate)}</div>
-                          </>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{asset.name}</div>
+                          <div className="text-sm text-muted-foreground">{asset.type}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="text-sm font-medium">{asset.brand}</div>
+                          <div className="text-xs text-muted-foreground">{asset.configuration}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <code className="bg-muted px-2 py-1 rounded text-xs">
+                          {asset.serialNumber}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        {asset.employeeId ? (
+                          <code className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">
+                            {asset.employeeId}
+                          </code>
                         ) : (
-                          <span className="text-muted-foreground">No date</span>
+                          <span className="text-muted-foreground text-sm">-</span>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 flex-wrap">
-                        {asset.status === "Available" ? (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setSelectedAsset(asset);
-                              setShowAssignDialog(true);
-                            }}
-                            className="bg-gradient-primary hover:shadow-glow transition-smooth"
-                          >
-                            <UserPlus className="h-3 w-3 mr-1" />
-                            Assign
-                          </Button>
-                        ) : asset.status === "Assigned" ? (
+                      </TableCell>
+                      <TableCell>
+                        {asset.assignedTo ? (
+                          <div className="font-medium">{asset.assignedTo}</div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(asset.status)}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{asset.location}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {asset.assignedDate ? (
+                            <>
+                              <div>Assigned: {formatDate(asset.assignedDate)}</div>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">No date</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 flex-wrap">
+                          {asset.status === "Available" ? (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedAsset(asset);
+                                setShowAssignDialog(true);
+                              }}
+                              className="bg-gradient-primary hover:shadow-glow transition-smooth"
+                            >
+                              <UserPlus className="h-3 w-3 mr-1" />
+                              Assign
+                            </Button>
+                          ) : asset.status === "Assigned" ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onUnassign(asset.id)}
+                              className="hover:bg-warning hover:text-warning-foreground"
+                            >
+                              <UserMinus className="h-3 w-3 mr-1" />
+                              Return
+                            </Button>
+                          ) : null}
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => onUnassign(asset.id)}
-                            className="hover:bg-warning hover:text-warning-foreground"
+                            onClick={() => {
+                              setSelectedAsset(asset);
+                              setShowEditDialog(true);
+                            }}
+                            className="hover:bg-blue-500 hover:text-white"
                           >
-                            <UserMinus className="h-3 w-3 mr-1" />
-                            Return
+                            <Settings className="h-3 w-3" />
                           </Button>
-                        ) : null}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedAsset(asset);
-                            setShowEditDialog(true);
-                          }}
-                          className="hover:bg-blue-500 hover:text-white"
-                        >
-                          <Settings className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedAsset(asset);
-                            setNewStatus(asset.status);
-                            setShowStatusDialog(true);
-                          }}
-                          className="hover:bg-primary hover:text-primary-foreground"
-                        >
-                          Status
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            if (confirm("Are you sure you want to delete this asset?")) {
-                              onDelete(asset.id);
-                            }
-                          }}
-                          className="hover:bg-destructive hover:text-destructive-foreground"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedAsset(asset);
+                              setNewStatus(asset.status);
+                              setShowStatusDialog(true);
+                            }}
+                            className="hover:bg-primary hover:text-primary-foreground"
+                          >
+                            Status
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedAsset(asset);
+                              setNewLocation(asset.location);
+                              setShowLocationDialog(true);
+                            }}
+                            className="hover:bg-primary hover:text-primary-foreground"
+                          >
+                            Location
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this asset?")) {
+                                onDelete(asset.id);
+                              }
+                            }}
+                            className="hover:bg-destructive hover:text-destructive-foreground"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {/* Pagination Controls */}
+            <div className="flex justify-between items-center mt-4">
+              <div className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * rowsPerPage + 1} to{" "}
+                {Math.min(currentPage * rowsPerPage, filteredAssets.length)} of {filteredAssets.length} assets
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </CardContent>
 
@@ -327,8 +411,8 @@ export const AssetList = ({
               />
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowAssignDialog(false);
                   setUserName("");
@@ -339,7 +423,7 @@ export const AssetList = ({
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleAssignAsset}
                 disabled={!userName.trim() || !employeeId.trim()}
                 className="flex-1 bg-gradient-primary hover:shadow-glow transition-smooth"
@@ -378,8 +462,8 @@ export const AssetList = ({
               </Select>
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowStatusDialog(false);
                   setNewStatus("");
@@ -389,9 +473,59 @@ export const AssetList = ({
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleUpdateStatus}
                 disabled={!newStatus}
+                className="flex-1 bg-gradient-primary hover:shadow-glow transition-smooth"
+              >
+                Update
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Location Dialog */}
+      <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Asset Location</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Asset: {selectedAsset?.name}</Label>
+              <p className="text-sm text-muted-foreground">{selectedAsset?.assetId}</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Location</Label>
+              <Select value={newLocation} onValueChange={setNewLocation}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((location) => (
+                    <SelectItem key={location} value={location}>
+                      {location}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowLocationDialog(false);
+                  setNewLocation("");
+                  setSelectedAsset(null);
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateLocation}
+                disabled={!newLocation}
                 className="flex-1 bg-gradient-primary hover:shadow-glow transition-smooth"
               >
                 Update

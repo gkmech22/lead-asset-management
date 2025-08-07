@@ -9,87 +9,35 @@ import { DatePickerWithRange } from "./DatePickerWithRange";
 import { BulkUpload } from "./BulkUpload";
 import { DateRange } from "react-day-picker";
 
-// Mock data for demonstration
-const mockAssets = [
-  { 
-    id: 1, 
-    assetId: "AST-001", 
-    name: "MacBook Pro 16\"", 
-    type: "Laptop", 
-    brand: "Apple", 
-    configuration: "16GB RAM, 512GB SSD", 
-    serialNumber: "MBP16-2023-001",
-    assignedTo: "John Doe", 
-    employeeId: "EMP001",
-    status: "Assigned", 
-    assignedDate: "2024-01-15" 
-  },
-  { 
-    id: 2, 
-    assetId: "AST-002", 
-    name: "ThinkPad X1 Carbon", 
-    type: "Laptop", 
-    brand: "Lenovo", 
-    configuration: "16GB RAM, 1TB SSD", 
-    serialNumber: "TPX1-2023-002",
-    assignedTo: null, 
-    employeeId: null,
-    status: "Available", 
-    assignedDate: null 
-  },
-  { 
-    id: 3, 
-    assetId: "AST-003", 
-    name: "iPad Pro 12.9\"", 
-    type: "Tablet", 
-    brand: "Apple", 
-    configuration: "256GB, Wi-Fi + Cellular", 
-    serialNumber: "IPD-2023-003",
-    assignedTo: "Jane Smith", 
-    employeeId: "EMP002",
-    status: "Assigned", 
-    assignedDate: "2024-01-20" 
-  },
-  { 
-    id: 4, 
-    assetId: "AST-004", 
-    name: "Surface Pro 9", 
-    type: "Tablet", 
-    brand: "Microsoft", 
-    configuration: "16GB RAM, 512GB SSD", 
-    serialNumber: "SPR-2023-004",
-    assignedTo: null, 
-    employeeId: null,
-    status: "Available", 
-    assignedDate: null 
-  },
-  { 
-    id: 5, 
-    assetId: "AST-005", 
-    name: "Dell XPS 13", 
-    type: "Laptop", 
-    brand: "Dell", 
-    configuration: "32GB RAM, 1TB SSD", 
-    serialNumber: "DXP-2023-005",
-    assignedTo: "Mike Johnson", 
-    employeeId: "EMP003",
-    status: "Assigned", 
-    assignedDate: "2024-02-01" 
-  },
-  { 
-    id: 6, 
-    assetId: "AST-006", 
-    name: "Galaxy Tab S9", 
-    type: "Tablet", 
-    brand: "Samsung", 
-    configuration: "512GB, 5G", 
-    serialNumber: "GTS-2023-006",
-    assignedTo: "Sarah Wilson", 
-    employeeId: "EMP004",
-    status: "Scrap/Damage", 
-    assignedDate: "2024-02-05" 
-  },
+const locations = [
+  "Mumbai Office",
+  "Hyderabad WH",
+  "Ghaziabad WH",
+  "Bhiwandi WH",
+  "Patiala WH",
+  "Bangalore Office",
+  "Kolkata WH",
+  "Trichy WH",
+  "Gurugram Office",
+  "Indore WH",
+  "Bangalore WH",
+  "Jaipur WH",
 ];
+
+const mockAssets = Array.from({ length: 150 }, (_, index) => ({
+  id: index + 1,
+  assetId: `AST-${String(index + 1).padStart(3, "0")}`,
+  name: `Device ${index + 1}`,
+  type: ["Laptop", "Tablet", "Smartphone"][index % 3],
+  brand: ["Apple", "Lenovo", "Microsoft", "Samsung", "Dell"][index % 5],
+  configuration: ["16GB RAM, 512GB SSD", "32GB RAM, 1TB SSD", "256GB, Wi-Fi"][index % 3],
+  serialNumber: `SN-${String(index + 1).padStart(3, "0")}`,
+  assignedTo: index % 2 === 0 ? `Employee ${index + 1}` : null,
+  employeeId: index % 2 === 0 ? `EMP${String(index + 1).padStart(3, "0")}` : null,
+  status: index % 5 === 0 ? "Available" : index % 5 === 1 ? "Assigned" : index % 5 === 2 ? "Scrap/Damage" : index % 5 === 3 ? "Sold" : "Others",
+  location: locations[index % locations.length],
+  assignedDate: index % 2 === 0 ? `2024-${String((index % 12) + 1).padStart(2, "0")}-01` : null,
+}));
 
 export const Dashboard = () => {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -99,28 +47,31 @@ export const Dashboard = () => {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [brandFilter, setBrandFilter] = useState<string>("all");
   const [configFilter, setConfigFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
 
   // Get unique values for filters
-  const assetTypes = [...new Set(assets.map(asset => asset.type))];
-  const assetBrands = [...new Set(assets.map(asset => asset.brand))];
-  const assetConfigurations = [...new Set(assets.map(asset => asset.configuration))];
+  const assetTypes = [...new Set(assets.map((asset) => asset.type))];
+  const assetBrands = [...new Set(assets.map((asset) => asset.brand))];
+  const assetConfigurations = [...new Set(assets.map((asset) => asset.configuration))];
+  const assetLocations = [...new Set(assets.map((asset) => asset.location))];
 
   // Filter assets based on selected filters
-  const filteredAssets = assets.filter(asset => {
+  const filteredAssets = assets.filter((asset) => {
     const typeMatch = typeFilter === "all" || asset.type === typeFilter;
     const brandMatch = brandFilter === "all" || asset.brand === brandFilter;
     const configMatch = configFilter === "all" || asset.configuration === configFilter;
-    
-    return typeMatch && brandMatch && configMatch;
+    const locationMatch = locationFilter === "all" || asset.location === locationFilter;
+
+    return typeMatch && brandMatch && configMatch && locationMatch;
   });
 
   // Calculate inventory statistics using filtered data
   const totalInventory = filteredAssets.length;
-  const allocatedAssets = filteredAssets.filter(asset => asset.status === "Assigned").length;
-  const currentStock = filteredAssets.filter(asset => asset.status === "Available").length;
-  const scrapDamageAssets = filteredAssets.filter(asset => asset.status === "Scrap" || asset.status === "Damage").length;
-  
-  const allocatedInRange = filteredAssets.filter(asset => {
+  const allocatedAssets = filteredAssets.filter((asset) => asset.status === "Assigned").length;
+  const currentStock = filteredAssets.filter((asset) => asset.status === "Available").length;
+  const scrapDamageAssets = filteredAssets.filter((asset) => asset.status === "Scrap/Damage").length;
+
+  const allocatedInRange = filteredAssets.filter((asset) => {
     if (!asset.assignedDate || !dateRange?.from || !dateRange?.to) return false;
     const assignedDate = new Date(asset.assignedDate);
     return assignedDate >= dateRange.from && assignedDate <= dateRange.to;
@@ -131,6 +82,7 @@ export const Dashboard = () => {
       id: assets.length + 1,
       ...newAsset,
       status: "Available",
+      location: locations[0], // Default to first location
       assignedTo: null,
       employeeId: null,
       assignedDate: null,
@@ -140,43 +92,47 @@ export const Dashboard = () => {
   };
 
   const handleAssignAsset = (assetId: number, userName: string, employeeId: string) => {
-    setAssets(assets.map(asset => 
-      asset.id === assetId 
-        ? { ...asset, assignedTo: userName, employeeId, status: "Assigned", assignedDate: new Date().toISOString().split('T')[0] }
-        : asset
-    ));
+    setAssets(
+      assets.map((asset) =>
+        asset.id === assetId
+          ? {
+              ...asset,
+              assignedTo: userName,
+              employeeId,
+              status: "Assigned",
+              assignedDate: new Date().toISOString().split("T")[0],
+            }
+          : asset
+      )
+    );
   };
 
   const handleUnassignAsset = (assetId: number) => {
-    setAssets(assets.map(asset => 
-      asset.id === assetId 
-        ? { ...asset, assignedTo: null, employeeId: null, status: "Available", assignedDate: null }
-        : asset
-    ));
+    setAssets(
+      assets.map((asset) =>
+        asset.id === assetId
+          ? { ...asset, assignedTo: null, employeeId: null, status: "Available", assignedDate: null }
+          : asset
+      )
+    );
   };
 
   const handleUpdateAsset = (assetId: number, updatedAsset: any) => {
-    setAssets(assets.map(asset => 
-      asset.id === assetId ? { ...asset, ...updatedAsset } : asset
-    ));
+    setAssets(
+      assets.map((asset) => (asset.id === assetId ? { ...asset, ...updatedAsset } : asset))
+    );
   };
 
   const handleUpdateStatus = (assetId: number, status: string) => {
-    setAssets(assets.map(asset => 
-      asset.id === assetId ? { ...asset, status } : asset
-    ));
+    setAssets(assets.map((asset) => (asset.id === assetId ? { ...asset, status } : asset)));
+  };
+
+  const handleUpdateLocation = (assetId: number, location: string) => {
+    setAssets(assets.map((asset) => (asset.id === assetId ? { ...asset, location } : asset)));
   };
 
   const handleDeleteAsset = (assetId: number) => {
-    setAssets(assets.filter(asset => asset.id !== assetId));
-  };
-
-  const handleUpdateAssetStatus = (assetId: number, status: string) => {
-    setAssets(assets.map(asset => 
-      asset.id === assetId 
-        ? { ...asset, status }
-        : asset
-    ));
+    setAssets(assets.filter((asset) => asset.id !== assetId));
   };
 
   const handleBulkUpload = (file: File) => {
@@ -185,17 +141,36 @@ export const Dashboard = () => {
 
   const handleDownloadData = () => {
     const headers = [
-      "Asset ID", "Asset Name", "Asset Type", "Brand", "Configuration", 
-      "Serial Number", "Employee ID", "Employee Name", "Status", "Assigned Date"
+      "Asset ID",
+      "Asset Name",
+      "Asset Type",
+      "Brand",
+      "Configuration",
+      "Serial Number",
+      "Employee ID",
+      "Employee Name",
+      "Status",
+      "Asset Location",
+      "Assigned Date",
     ];
-    
+
     const csvContent = [
       headers.join(","),
-      ...filteredAssets.map(asset => [
-        asset.assetId, asset.name, asset.type, asset.brand, 
-        asset.configuration, asset.serialNumber, asset.employeeId || "", asset.assignedTo || "", 
-        asset.status, asset.assignedDate || ""
-      ].join(","))
+      ...filteredAssets.map((asset) =>
+        [
+          asset.assetId,
+          asset.name,
+          asset.type,
+          asset.brand,
+          asset.configuration,
+          asset.serialNumber,
+          asset.employeeId || "",
+          asset.assignedTo || "",
+          asset.status,
+          asset.location,
+          asset.assignedDate || "",
+        ].join(",")
+      ),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -211,6 +186,7 @@ export const Dashboard = () => {
     setTypeFilter("all");
     setBrandFilter("all");
     setConfigFilter("all");
+    setLocationFilter("all");
     setDateRange(undefined);
   };
 
@@ -224,10 +200,12 @@ export const Dashboard = () => {
               <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 Asset Management System
               </h1>
-              <p className="text-muted-foreground mt-2 text-lg">Track and manage your organization's assets efficiently</p>
+              <p className="text-muted-foreground mt-2 text-lg">
+                Track and manage your organization's assets efficiently
+              </p>
             </div>
             <div className="flex gap-3">
-              <Button 
+              <Button
                 onClick={() => setShowBulkUpload(true)}
                 variant="outline"
                 className="hover:bg-primary hover:text-primary-foreground transition-smooth"
@@ -235,7 +213,7 @@ export const Dashboard = () => {
                 <Upload className="w-4 h-4 mr-2" />
                 Bulk Operations
               </Button>
-              <Button 
+              <Button
                 onClick={() => setShowAddForm(true)}
                 className="bg-gradient-primary hover:shadow-glow transition-smooth"
               >
@@ -256,9 +234,9 @@ export const Dashboard = () => {
                 <Filter className="h-5 w-5 text-primary" />
                 Filters
               </CardTitle>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={clearFilters}
                 className="hover:bg-destructive hover:text-destructive-foreground"
               >
@@ -277,8 +255,10 @@ export const Dashboard = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
-                    {assetTypes.map(type => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    {assetTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -293,8 +273,10 @@ export const Dashboard = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Brands</SelectItem>
-                    {assetBrands.map(brand => (
-                      <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                    {assetBrands.map((brand) => (
+                      <SelectItem key={brand} value={brand}>
+                        {brand}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -309,8 +291,28 @@ export const Dashboard = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Configurations</SelectItem>
-                    {assetConfigurations.map(config => (
-                      <SelectItem key={config} value={config}>{config}</SelectItem>
+                    {assetConfigurations.map((config) => (
+                      <SelectItem key={config} value={config}>
+                        {config}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Location Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Asset Location</label>
+                <Select value={locationFilter} onValueChange={setLocationFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    {assetLocations.map((location) => (
+                      <SelectItem key={location} value={location}>
+                        {location}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -335,9 +337,7 @@ export const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-primary">{totalInventory}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Total assets in system
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Total assets in system</p>
             </CardContent>
           </Card>
 
@@ -349,9 +349,7 @@ export const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-warning">{allocatedAssets}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Currently in use
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Currently in use</p>
             </CardContent>
           </Card>
 
@@ -363,9 +361,7 @@ export const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-success">{currentStock}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Ready for allocation
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Ready for allocation</p>
             </CardContent>
           </Card>
 
@@ -377,20 +373,19 @@ export const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-destructive">{scrapDamageAssets}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Out of service
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Out of service</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Asset List */}
-        <AssetList 
+        <AssetList
           assets={filteredAssets}
           onAssign={handleAssignAsset}
           onUnassign={handleUnassignAsset}
           onUpdateAsset={handleUpdateAsset}
           onUpdateStatus={handleUpdateStatus}
+          onUpdateLocation={handleUpdateLocation}
           onDelete={handleDeleteAsset}
           dateRange={dateRange}
           typeFilter={typeFilter}
@@ -400,12 +395,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Add Asset Modal */}
-      {showAddForm && (
-        <AssetForm 
-          onSubmit={handleAddAsset}
-          onCancel={() => setShowAddForm(false)}
-        />
-      )}
+      {showAddForm && <AssetForm onSubmit={handleAddAsset} onCancel={() => setShowAddForm(false)} />}
 
       {/* Bulk Upload Modal */}
       <BulkUpload
